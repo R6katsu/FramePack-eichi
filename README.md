@@ -327,6 +327,7 @@ FramePack-eichiは、lllyasviel師の[lllyasviel/FramePack](https://github.com/l
 
 - Windows 10/11（Linux/Macでも基本機能は多分動作可能）
 - NVIDIA GPU (RTX 30/40/50シリーズ推奨、最低8GB VRAM)
+- CUDA非対応環境ではCPU実行も可能ですが、処理速度は大幅に低下します
 - CUDA Toolkit 12.6（RTX 50シリーズでは12.8推奨）
 - Python 3.10.x（RTX 50シリーズでは3.11推奨）
 - 最新のNVIDIA GPU ドライバー

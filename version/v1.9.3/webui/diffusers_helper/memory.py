@@ -5,7 +5,7 @@ import torch
 
 
 cpu = torch.device('cpu')
-gpu = torch.device(f'cuda:{torch.cuda.current_device()}')
+gpu = torch.device(f'cuda:{torch.cuda.current_device()}') if torch.cuda.is_available() else cpu
 gpu_complete_modules = []
 
 
@@ -72,6 +72,9 @@ def get_cuda_free_memory_gb(device=None):
     if device is None:
         device = gpu
 
+    if not torch.cuda.is_available() or device.type != 'cuda':
+        return 0
+
     memory_stats = torch.cuda.memory_stats(device)
     bytes_active = memory_stats['active_bytes.all.current']
     bytes_reserved = memory_stats['reserved_bytes.all.current']
@@ -84,32 +87,44 @@ def get_cuda_free_memory_gb(device=None):
 def move_model_to_device_with_memory_preservation(model, target_device, preserved_memory_gb=0):
     print(f'Moving {model.__class__.__name__} to {target_device} with preserved memory: {preserved_memory_gb} GB')
 
+    if not torch.cuda.is_available() or target_device.type != 'cuda':
+        model.to(device=target_device)
+        return
+
     for m in model.modules():
         if get_cuda_free_memory_gb(target_device) <= preserved_memory_gb:
-            torch.cuda.empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return
 
         if hasattr(m, 'weight'):
             m.to(device=target_device)
 
     model.to(device=target_device)
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     return
 
 
 def offload_model_from_device_for_memory_preservation(model, target_device, preserved_memory_gb=0):
     print(f'Offloading {model.__class__.__name__} from {target_device} to preserve memory: {preserved_memory_gb} GB')
 
+    if not torch.cuda.is_available() or target_device.type != 'cuda':
+        model.to(device=cpu)
+        return
+
     for m in model.modules():
         if get_cuda_free_memory_gb(target_device) >= preserved_memory_gb:
-            torch.cuda.empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             return
 
         if hasattr(m, 'weight'):
             m.to(device=cpu)
 
     model.to(device=cpu)
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     return
 
 
@@ -121,7 +136,8 @@ def unload_complete_models(*args):
         print(f'Unloaded {m.__class__.__name__} as complete.')
 
     gpu_complete_modules.clear()
-    torch.cuda.empty_cache()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     return
 
 
@@ -133,4 +149,6 @@ def load_model_as_complete(model, target_device, unload=True):
     print(f'Loaded {model.__class__.__name__} to {target_device} as complete.')
 
     gpu_complete_modules.append(model)
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     return
